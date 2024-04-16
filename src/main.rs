@@ -1,7 +1,8 @@
 use rdev::{listen, Event, EventType};
+use rodio::Sink;
 use rodio::{Decoder, OutputStream, source::Source};
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Cursor};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     
@@ -16,12 +17,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn cb(e: Event) {
     if e.event_type == EventType::ButtonPress(rdev::Button::Left) {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let sink = Sink::try_new(&stream_handle).unwrap();
         // Load a sound from a file, using a path relative to Cargo.toml
-        let file = BufReader::new(File::open("src/Pokémon Red_Blue_Yellow - Door Enter - Sound Effect-00rlTif_Kfg.flac").unwrap());
+        let slice = Cursor::new(include_bytes!("./Pokémon Red_Blue_Yellow - Door Enter - Sound Effect-00rlTif_Kfg.flac").as_ref());
         // Decode that sound file into a source
-        let source = Decoder::new(file).unwrap();
+        let source = Decoder::new(slice).unwrap();
 
-        stream_handle.play_raw(source.convert_samples()).unwrap();
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        sink.append(source);
+        sink.sleep_until_end();
     }
 }
