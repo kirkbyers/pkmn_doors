@@ -6,7 +6,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  PROJECT_NAME: term_bounce
+  PROJECT_NAME: pkmn_doors
 
 jobs:
   build:
