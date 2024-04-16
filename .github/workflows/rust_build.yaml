@@ -1,0 +1,25 @@
+name: Rust Build
+
+on:
+  push:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  PROJECT_NAME: term_bounce
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build release
+      run: cargo build --release
+    - name: Archive release
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.PROJECT_NAME }}-${{ matrix.os }}
+        path: target/release/${{ env.PROJECT_NAME }}
