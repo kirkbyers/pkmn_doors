@@ -3,6 +3,8 @@ use rodio::Sink;
 use rodio::{Decoder, OutputStream};
 use std::io::Cursor;
 
+const VOL: f32 = 0.35;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(error) = listen(cb()) {
@@ -37,7 +39,7 @@ fn cb() -> impl FnMut(Event) {
 fn play_doors() {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
-    sink.set_volume(0.3);
+    sink.set_volume(VOL);
     // Load a sound from a file, using a path relative to Cargo.toml
     let slice = Cursor::new(
         include_bytes!("./Pokémon Red_Blue_Yellow - Door Enter - Sound Effect-00rlTif_Kfg.flac")
