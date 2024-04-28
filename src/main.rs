@@ -12,8 +12,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let mut mode: String = String::from(PKMN_MODE);
 
-    println!("{:?}", args);
-
     for (idx, arg) in args.iter().enumerate() {
         if arg.to_lowercase() == "--mode" {
             mode = String::from(args[idx+1].to_lowercase());
@@ -106,9 +104,9 @@ macro_rules! play_sound {
     };
 }
 
-play_sound!(play_doors, "./Pokémon Red_Blue_Yellow - Door Enter - Sound Effect-00rlTif_Kfg.flac");
-play_sound!(play_pkmn_center, "./Pokémon Center Heal - Pokémon Red_Blue_Yellow Version-3IQSjLXfiPI.flac");
-play_sound!(play_collision, "./Pokémon Red_Blue_Yellow - Collision - Sound Effect-TgOm3ewdXcc.flac");
-play_sound!(play_tele, "./Pokémon Red_Blue_Yellow - Teleport - Sound Effect-wa6_3zkNGKI.flac");
-play_sound!(play_fly, "Pokémon Red_Blue_ Yellow - Fly - Sound Effect-OUdD1Itsukc.flac");
-play_sound!(play_poison, "Pokémon Red_Blue_Yellow - Poison - Sound Effect-09nSUB3QhlM.flac");
+play_sound!(play_doors, "../sounds/Pokémon Red_Blue_Yellow - Door Enter - Sound Effect-00rlTif_Kfg.flac");
+play_sound!(play_pkmn_center, "../sounds/Pokémon Center Heal - Pokémon Red_Blue_Yellow Version-3IQSjLXfiPI.flac");
+play_sound!(play_collision, "../sounds/Pokémon Red_Blue_Yellow - Collision - Sound Effect-TgOm3ewdXcc.flac");
+play_sound!(play_tele, "../sounds/Pokémon Red_Blue_Yellow - Teleport - Sound Effect-wa6_3zkNGKI.flac");
+play_sound!(play_fly, "../sounds/Pokémon Red_Blue_ Yellow - Fly - Sound Effect-OUdD1Itsukc.flac");
+play_sound!(play_poison, "../sounds/Pokémon Red_Blue_Yellow - Poison - Sound Effect-09nSUB3QhlM.flac");
