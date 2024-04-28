@@ -2,13 +2,33 @@ use rdev::{listen, Event, EventType, Key};
 use rodio::Sink;
 use rodio::{Decoder, OutputStream};
 use std::io::Cursor;
+use std::env;
 
 const VOL: f32 = 0.35;
+const PKMN_MODE: &str = "pkmn";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    if let Err(error) = listen(pkmn_binds()) {
-        println!("Error {:?}", error);
+    let args: Vec<String> = env::args().collect();
+    let mut mode: String = String::from(PKMN_MODE);
+
+    println!("{:?}", args);
+
+    for (idx, arg) in args.iter().enumerate() {
+        if arg.to_lowercase() == "--mode" {
+            mode = String::from(args[idx+1].to_lowercase());
+        }
+    }
+
+    match mode.as_ref() {
+        PKMN_MODE => {
+            if let Err(error) = listen(pkmn_binds()) {
+                println!("Error {:?}", error);
+            }
+        },
+        _ => {
+            println!("No matching mode found for {:?}. Exiting", mode);
+        }
     }
 
     Ok(())
