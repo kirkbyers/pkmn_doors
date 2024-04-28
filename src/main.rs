@@ -1,20 +1,26 @@
 use rdev::{listen, Event, EventType, Key};
 use rodio::Sink;
 use rodio::{Decoder, OutputStream};
-use std::io::Cursor;
 use std::env;
+use std::io::Cursor;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Mutex;
 
 const VOL: f32 = 0.35;
 const PKMN_MODE: &str = "pkmn";
+const ACID_MODE: &str = "acid";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let mut mode: String = String::from(PKMN_MODE);
 
+    let output_stream_mutex = Arc::new(Mutex::new(OutputStream::try_default().unwrap().0));
+
     for (idx, arg) in args.iter().enumerate() {
         if arg.to_lowercase() == "--mode" {
-            mode = String::from(args[idx+1].to_lowercase());
+            mode = String::from(args[idx + 1].to_lowercase());
         }
     }
 
@@ -23,7 +29,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Err(error) = listen(pkmn_binds()) {
                 println!("Error {:?}", error);
             }
-        },
+        }
+        ACID_MODE => {
+            let output_steam_copy = Arc::clone(&output_stream_mutex);
+            if let Err(error) = listen(acid_binds(&output_steam_copy)) {
+                println!("Error {:?}", error);
+            }
+        }
         _ => {
             println!("No matching mode found for {:?}. Exiting", mode);
         }
@@ -55,6 +67,60 @@ macro_rules! handle_key_state {
             $state = false;
         }
     };
+}
+
+fn acid_binds(outout_stream: &Arc<Mutex<OutputStream>>) -> impl FnMut(Event) {
+    let should_play = Arc::new(tokio::sync::Mutex::new(false));
+    let should_play_in_future = Arc::clone(&should_play);
+    let mut output_stream = outout_stream.try_lock().unwrap();
+    let (stream, stream_handle) = OutputStream::try_default().unwrap();
+    *output_stream = stream;
+    let sink = Sink::try_new(&stream_handle).unwrap();
+    sink.set_volume(VOL);
+    tokio::spawn(async move {
+        loop {
+            if sink.len() <= 5 {
+                for _ in vec![""; 5] {
+                    let slice = Cursor::new(
+                        include_bytes!(
+                            "../sounds/KLOUD - DISCIPLE (Official Music Video)-wT5xVFlavP4.flac"
+                        )
+                        .to_vec(),
+                    );
+                    sink.append(Decoder::new(slice).unwrap());
+                }
+                sink.pause();
+            }
+
+            let mut should_play = should_play_in_future.lock().await;
+            if *should_play {
+                sink.play();
+                *should_play = false;
+            } else {
+                if !sink.empty() && !sink.is_paused() {
+                    sink.pause()
+                }
+            }
+            drop(should_play);
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+    });
+
+    let should_play_in_event = Arc::clone(&should_play);
+    move |e: Event| {
+        // println!("{:?}", e);
+        match e.name {
+            Some(_name) => match should_play_in_event.try_lock() {
+                Ok(mut should_play) => {
+                    *should_play = true;
+                }
+                Err(e) => {
+                    println!("{:?}", e)
+                }
+            },
+            None => {}
+        }
+    }
 }
 
 fn pkmn_binds() -> impl FnMut(Event) {
@@ -96,17 +162,32 @@ fn play_bytes(bytes: &Vec<u8>) {
 macro_rules! play_sound {
     ($name:ident, $path:expr) => {
         fn $name() {
-            play_bytes(
-                &include_bytes!($path)
-                    .to_vec(),
-            )
+            play_bytes(&include_bytes!($path).to_vec())
         }
     };
 }
 
-play_sound!(play_doors, "../sounds/Pokémon Red_Blue_Yellow - Door Enter - Sound Effect-00rlTif_Kfg.flac");
-play_sound!(play_pkmn_center, "../sounds/Pokémon Center Heal - Pokémon Red_Blue_Yellow Version-3IQSjLXfiPI.flac");
-play_sound!(play_collision, "../sounds/Pokémon Red_Blue_Yellow - Collision - Sound Effect-TgOm3ewdXcc.flac");
-play_sound!(play_tele, "../sounds/Pokémon Red_Blue_Yellow - Teleport - Sound Effect-wa6_3zkNGKI.flac");
-play_sound!(play_fly, "../sounds/Pokémon Red_Blue_ Yellow - Fly - Sound Effect-OUdD1Itsukc.flac");
-play_sound!(play_poison, "../sounds/Pokémon Red_Blue_Yellow - Poison - Sound Effect-09nSUB3QhlM.flac");
+play_sound!(
+    play_doors,
+    "../sounds/Pokémon Red_Blue_Yellow - Door Enter - Sound Effect-00rlTif_Kfg.flac"
+);
+play_sound!(
+    play_pkmn_center,
+    "../sounds/Pokémon Center Heal - Pokémon Red_Blue_Yellow Version-3IQSjLXfiPI.flac"
+);
+play_sound!(
+    play_collision,
+    "../sounds/Pokémon Red_Blue_Yellow - Collision - Sound Effect-TgOm3ewdXcc.flac"
+);
+play_sound!(
+    play_tele,
+    "../sounds/Pokémon Red_Blue_Yellow - Teleport - Sound Effect-wa6_3zkNGKI.flac"
+);
+play_sound!(
+    play_fly,
+    "../sounds/Pokémon Red_Blue_ Yellow - Fly - Sound Effect-OUdD1Itsukc.flac"
+);
+play_sound!(
+    play_poison,
+    "../sounds/Pokémon Red_Blue_Yellow - Poison - Sound Effect-09nSUB3QhlM.flac"
+);
