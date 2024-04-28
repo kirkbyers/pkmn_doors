@@ -14,61 +14,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+macro_rules! handle_key_press {
+    ($event_type:expr, $key:expr, $action:expr) => {
+        if $event_type == EventType::KeyPress($key) {
+            tokio::spawn(async {
+                $action();
+            });
+        }
+    };
+}
+
+macro_rules! handle_key_state {
+    ($event_type:expr, $key_press:expr, $key_release:expr, $state:ident) => {
+        if $event_type == EventType::KeyPress($key_press)
+            || $event_type == EventType::KeyPress($key_release)
+        {
+            $state = true;
+        }
+        if $event_type == EventType::KeyRelease($key_press)
+            || $event_type == EventType::KeyRelease($key_release)
+        {
+            $state = false;
+        }
+    };
+}
+
 fn cb() -> impl FnMut(Event) {
     let mut cmd_pressed = false;
     let mut shift_pressed = false;
     move |e: Event| {
         // println!("{:?}", e);
-        if e.event_type == EventType::KeyPress(Key::MetaLeft)
-            || e.event_type == EventType::KeyPress(Key::MetaRight)
-        {
-            cmd_pressed = true;
+        handle_key_state!(e.event_type, Key::MetaLeft, Key::MetaRight, cmd_pressed);
+        handle_key_state!(e.event_type, Key::ShiftLeft, Key::ShiftRight, shift_pressed);
+
+        if cmd_pressed {
+            handle_key_press!(e.event_type, Key::KeyW, play_doors);
+            handle_key_press!(e.event_type, Key::KeyS, play_pkmn_center);
+            handle_key_press!(e.event_type, Key::KeyZ, play_collision);
+            handle_key_press!(e.event_type, Key::KeyP, play_tele);
+            handle_key_press!(e.event_type, Key::Backspace, play_poison);
+            if shift_pressed {
+                handle_key_press!(e.event_type, Key::KeyK, play_poison);
+            }
         }
-        if e.event_type == EventType::KeyRelease(Key::MetaLeft)
-            || e.event_type == EventType::KeyRelease(Key::MetaRight)
-        {
-            cmd_pressed = false;
-        }
-        if e.event_type == EventType::KeyPress(Key::ShiftLeft)
-            || e.event_type == EventType::KeyPress(Key::ShiftRight)
-        {
-            shift_pressed = true;
-        }
-        if e.event_type == EventType::KeyRelease(Key::ShiftLeft)
-            || e.event_type == EventType::KeyRelease(Key::ShiftRight)
-        {
-            shift_pressed = false;
-        }
-        if e.event_type == EventType::KeyPress(Key::KeyW) && cmd_pressed {
-            tokio::spawn(async {
-                play_doors();
-            });
-        }
-        if e.event_type == EventType::KeyPress(Key::KeyS) && cmd_pressed {
-            tokio::spawn(async {
-                play_pkmn_center();
-            });
-        }
-        if e.event_type == EventType::KeyPress(Key::KeyZ) && cmd_pressed {
-            tokio::spawn(async {
-                play_collision();
-            });
-        }
-        if e.event_type == EventType::KeyPress(Key::KeyP) && cmd_pressed  {
-            tokio::spawn(async {
-                play_tele();
-            });
-        }
-        if (e.event_type == EventType::KeyPress(Key::KeyK) && cmd_pressed && shift_pressed) || (e.event_type == EventType::KeyPress(Key::Backspace) && cmd_pressed) {
-            tokio::spawn(async {
-                play_poison();
-            });
-        }
-        if e.event_type == EventType::KeyPress(Key::Escape) {
-            tokio::spawn(async {
-                play_fly();
-            });
-        }
+
+        handle_key_press!(e.event_type, Key::Escape, play_fly);
     }
 }
 
