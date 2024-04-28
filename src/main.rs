@@ -7,7 +7,7 @@ const VOL: f32 = 0.35;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    if let Err(error) = listen(cb()) {
+    if let Err(error) = listen(pkmn_binds()) {
         println!("Error {:?}", error);
     }
 
@@ -39,7 +39,7 @@ macro_rules! handle_key_state {
     };
 }
 
-fn cb() -> impl FnMut(Event) {
+fn pkmn_binds() -> impl FnMut(Event) {
     let mut cmd_pressed = false;
     let mut shift_pressed = false;
     move |e: Event| {
