@@ -1,16 +1,20 @@
+use lazy_static::lazy_static;
 use rdev::{listen, Event, EventType, Key};
 use rodio::Sink;
 use rodio::{Decoder, OutputStream};
-use tokio::sync::Mutex;
 use std::cmp::max;
 use std::env;
 use std::io::Cursor;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Mutex;
 
-const VOL: f32 = 0.35;
 const PKMN_MODE: &str = "pkmn";
 const ACID_MODE: &str = "acid";
+
+lazy_static! {
+    static ref VOL: Mutex<f32> = Mutex::new(0.35);
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,6 +24,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (idx, arg) in args.iter().enumerate() {
         if arg.to_lowercase() == "--mode" {
             mode = String::from(args[idx + 1].to_lowercase());
+        }
+        if arg.to_lowercase() == "--vol"
+            || arg.to_lowercase() == "--volume"
+            || arg.to_lowercase() == "-v"
+        {
+            let volume = match args[idx + 1].to_lowercase().parse::<f32>() {
+                Ok(v) => v,
+                Err(_) => {
+                    println!("Volume must be between 0 and 1");
+                    return Ok(());
+                }
+            };
+            if volume < 0.0 || volume > 1.0 {
+                println!("Volume must be between 0 and 1");
+                return Ok(());
+            }
+            *VOL.lock().await = volume;
         }
     }
 
@@ -76,7 +97,11 @@ fn acid_binds(output_stream: &mut OutputStream) -> impl FnMut(Event) {
     let (stream, stream_handle) = OutputStream::try_default().unwrap();
     *output_stream = stream;
     let sink = Sink::try_new(&stream_handle).unwrap();
-    sink.set_volume(VOL);
+    let vol = match VOL.try_lock() {
+        Ok(vol) => *vol,
+        Err(_) => 0.35,
+    };
+    sink.set_volume(vol);
     tokio::spawn(async move {
         loop {
             if sink.len() <= 5 {
@@ -121,7 +146,7 @@ fn acid_binds(output_stream: &mut OutputStream) -> impl FnMut(Event) {
                     match consec_keys_counter_in_event.try_lock() {
                         Ok(mut consec_key_counter) => {
                             *consec_key_counter += 1;
-                        },
+                        }
                         Err(_) => {}
                     }
                 }
@@ -174,7 +199,11 @@ fn pkmn_binds() -> impl FnMut(Event) {
 fn play_bytes(bytes: &Vec<u8>) {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
-    sink.set_volume(VOL);
+    let vol = match VOL.try_lock() {
+        Ok(vol) => *vol,
+        Err(_) => 0.35,
+    };
+    sink.set_volume(vol);
     // Load a sound from a file, using a path relative to Cargo.toml
     let slice = Cursor::new(bytes.to_vec());
     // Decode that sound file into a source
