@@ -123,19 +123,33 @@ fn acid_binds(output_stream: &mut OutputStream) -> impl FnMut(Event) {
 fn pkmn_binds() -> impl FnMut(Event) {
     let mut cmd_pressed = false;
     let mut shift_pressed = false;
+    let mut ctrl_pressed = false;
     move |e: Event| {
         // println!("{:?}", e);
         handle_key_state!(e.event_type, Key::MetaLeft, Key::MetaRight, cmd_pressed);
         handle_key_state!(e.event_type, Key::ShiftLeft, Key::ShiftRight, shift_pressed);
+        handle_key_state!(
+            e.event_type,
+            Key::ControlLeft,
+            Key::ControlRight,
+            ctrl_pressed
+        );
 
         if cmd_pressed {
             handle_key_press!(e.event_type, Key::KeyW, play_doors);
             handle_key_press!(e.event_type, Key::KeyS, play_pkmn_center);
             handle_key_press!(e.event_type, Key::KeyZ, play_collision);
             handle_key_press!(e.event_type, Key::KeyP, play_tele);
+            handle_key_press!(e.event_type, Key::KeyC, play_catching);
+            handle_key_press!(e.event_type, Key::KeyV, play_catching_fail);
+            handle_key_press!(e.event_type, Key::KeyR, play_pkdex);
+            handle_key_press!(e.event_type, Key::KeyM, play_save);
             handle_key_press!(e.event_type, Key::Backspace, play_poison);
             if shift_pressed {
                 handle_key_press!(e.event_type, Key::KeyK, play_poison);
+            }
+            if ctrl_pressed {
+                handle_key_press!(e.event_type, Key::KeyC, play_wrong);
             }
         }
 
@@ -187,4 +201,24 @@ play_sound!(
 play_sound!(
     play_poison,
     "../sounds/Pokémon Red_Blue_Yellow - Poison - Sound Effect-09nSUB3QhlM.flac"
+);
+play_sound!(
+    play_catching,
+    "../sounds/Pokémon Red_Blue_Yellow - Pokéball Throw - Sound Effect-tXY4u4OM4w4.flac"
+);
+play_sound!(
+    play_catching_fail,
+    "../sounds/Pokémon Red_Blue_Yellow - Catching Attempt Fail 1 - Sound Effect-T5DLcfFVsKY.flac"
+);
+play_sound!(
+    play_pkdex,
+    "../sounds/Pokémon Red_Blue_Yellow - Pokémon Data Pokédex - Sound Effect-rduVgdbO4B0.flac"
+);
+play_sound!(
+    play_wrong,
+    "../sounds/Pokémon Red_Blue_Yellow - Wrong Answer - Sound Effect-K4sgpVUOCZw.flac"
+);
+play_sound!(
+    play_save,
+    "../sounds/Pokémon Red_Blue_Yellow - Save Game - Sound Effect-59luvyf9SYI.flac"
 );
