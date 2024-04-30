@@ -5,7 +5,6 @@ use std::env;
 use std::io::Cursor;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
 const VOL: f32 = 0.35;
 const PKMN_MODE: &str = "pkmn";
@@ -16,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let mut mode: String = String::from(PKMN_MODE);
 
-    let output_stream_mutex = Arc::new(Mutex::new(OutputStream::try_default().unwrap().0));
+    let mut output_stream = OutputStream::try_default().unwrap().0;
 
     for (idx, arg) in args.iter().enumerate() {
         if arg.to_lowercase() == "--mode" {
@@ -31,8 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         ACID_MODE => {
-            let output_steam_copy = Arc::clone(&output_stream_mutex);
-            if let Err(error) = listen(acid_binds(&output_steam_copy)) {
+            if let Err(error) = listen(acid_binds(&mut output_stream)) {
                 println!("Error {:?}", error);
             }
         }
@@ -69,10 +67,9 @@ macro_rules! handle_key_state {
     };
 }
 
-fn acid_binds(outout_stream: &Arc<Mutex<OutputStream>>) -> impl FnMut(Event) {
+fn acid_binds(output_stream: &mut OutputStream) -> impl FnMut(Event) {
     let should_play = Arc::new(tokio::sync::Mutex::new(false));
     let should_play_in_future = Arc::clone(&should_play);
-    let mut output_stream = outout_stream.try_lock().unwrap();
     let (stream, stream_handle) = OutputStream::try_default().unwrap();
     *output_stream = stream;
     let sink = Sink::try_new(&stream_handle).unwrap();
