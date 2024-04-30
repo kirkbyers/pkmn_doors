@@ -1,6 +1,8 @@
 use rdev::{listen, Event, EventType, Key};
 use rodio::Sink;
 use rodio::{Decoder, OutputStream};
+use tokio::sync::Mutex;
+use std::cmp::max;
 use std::env;
 use std::io::Cursor;
 use std::sync::Arc;
@@ -15,8 +17,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let mut mode: String = String::from(PKMN_MODE);
 
-    let mut output_stream = OutputStream::try_default().unwrap().0;
-
     for (idx, arg) in args.iter().enumerate() {
         if arg.to_lowercase() == "--mode" {
             mode = String::from(args[idx + 1].to_lowercase());
@@ -30,6 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         ACID_MODE => {
+            let mut output_stream = OutputStream::try_default().unwrap().0;
             if let Err(error) = listen(acid_binds(&mut output_stream)) {
                 println!("Error {:?}", error);
             }
@@ -68,7 +69,9 @@ macro_rules! handle_key_state {
 }
 
 fn acid_binds(output_stream: &mut OutputStream) -> impl FnMut(Event) {
-    let should_play = Arc::new(tokio::sync::Mutex::new(false));
+    let consec_keys_counter: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+    let consec_keys_counter_in_future = Arc::clone(&consec_keys_counter);
+    let should_play = Arc::new(Mutex::new(false));
     let should_play_in_future = Arc::clone(&should_play);
     let (stream, stream_handle) = OutputStream::try_default().unwrap();
     *output_stream = stream;
@@ -90,26 +93,37 @@ fn acid_binds(output_stream: &mut OutputStream) -> impl FnMut(Event) {
             }
 
             let mut should_play = should_play_in_future.lock().await;
+            let mut consec_keys_counter = consec_keys_counter_in_future.lock().await;
             if *should_play {
                 sink.play();
                 *should_play = false;
             } else {
                 if !sink.empty() && !sink.is_paused() {
+                    *consec_keys_counter = 0;
                     sink.pause()
                 }
             }
+            let sleep_in_ms = 500 + max(*consec_keys_counter * 10, 500);
             drop(should_play);
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            drop(consec_keys_counter);
+            tokio::time::sleep(Duration::from_millis(sleep_in_ms)).await;
         }
     });
 
     let should_play_in_event = Arc::clone(&should_play);
+    let consec_keys_counter_in_event = Arc::clone(&consec_keys_counter);
     move |e: Event| {
         // println!("{:?}", e);
         match e.name {
             Some(_name) => match should_play_in_event.try_lock() {
                 Ok(mut should_play) => {
                     *should_play = true;
+                    match consec_keys_counter_in_event.try_lock() {
+                        Ok(mut consec_key_counter) => {
+                            *consec_key_counter += 1;
+                        },
+                        Err(_) => {}
+                    }
                 }
                 Err(e) => {
                     println!("{:?}", e)
