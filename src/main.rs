@@ -1,11 +1,7 @@
 use rdev::{listen, Event, EventType, Key};
 use rodio::Sink;
 use rodio::{Decoder, OutputStream};
-use std::cmp::max;
-use std::env;
-use std::io::Cursor;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{cmp::max, env, io::Cursor, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 const PKMN_MODE: &str = "pkmn";
