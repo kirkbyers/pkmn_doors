@@ -1,4 +1,3 @@
-use lazy_static::lazy_static;
 use rdev::{listen, Event, EventType, Key};
 use rodio::Sink;
 use rodio::{Decoder, OutputStream};
@@ -11,10 +10,7 @@ use tokio::sync::Mutex;
 
 const PKMN_MODE: &str = "pkmn";
 const ACID_MODE: &str = "acid";
-
-lazy_static! {
-    static ref VOL: Mutex<f32> = Mutex::new(0.35);
-}
+const VOL_DEFAULT: f32 = 0.35;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,23 +20,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (idx, arg) in args.iter().enumerate() {
         if arg.to_lowercase() == "--mode" {
             mode = String::from(args[idx + 1].to_lowercase());
-        }
-        if arg.to_lowercase() == "--vol"
-            || arg.to_lowercase() == "--volume"
-            || arg.to_lowercase() == "-v"
-        {
-            let volume = match args[idx + 1].to_lowercase().parse::<f32>() {
-                Ok(v) => v,
-                Err(_) => {
-                    println!("Volume must be between 0 and 1");
-                    return Ok(());
-                }
-            };
-            if volume < 0.0 || volume > 1.0 {
-                println!("Volume must be between 0 and 1");
-                return Ok(());
-            }
-            *VOL.lock().await = volume;
         }
     }
 
@@ -62,6 +41,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn get_volume_arg() -> f32 {
+    let args: Vec<String> = env::args().collect();
+    for (idx, arg) in args.iter().enumerate() {
+        if ["--volume".to_string(), "-v".to_string()].contains(&arg.to_lowercase()) {
+            let volume = match args[idx+1].to_lowercase().parse::<f32>() {
+                Ok(v) => v,
+                Err(_) => VOL_DEFAULT,
+            };
+            return volume;
+        }
+    }
+    return VOL_DEFAULT;
 }
 
 macro_rules! handle_key_press {
@@ -97,10 +90,7 @@ fn acid_binds(output_stream: &mut OutputStream) -> impl FnMut(Event) {
     let (stream, stream_handle) = OutputStream::try_default().unwrap();
     *output_stream = stream;
     let sink = Sink::try_new(&stream_handle).unwrap();
-    let vol = match VOL.try_lock() {
-        Ok(vol) => *vol,
-        Err(_) => 0.35,
-    };
+    let vol = get_volume_arg();
     sink.set_volume(vol);
     tokio::spawn(async move {
         loop {
@@ -138,7 +128,6 @@ fn acid_binds(output_stream: &mut OutputStream) -> impl FnMut(Event) {
     let should_play_in_event = Arc::clone(&should_play);
     let consec_keys_counter_in_event = Arc::clone(&consec_keys_counter);
     move |e: Event| {
-        // println!("{:?}", e);
         match e.name {
             Some(_name) => match should_play_in_event.try_lock() {
                 Ok(mut should_play) => {
@@ -164,7 +153,6 @@ fn pkmn_binds() -> impl FnMut(Event) {
     let mut shift_pressed = false;
     let mut ctrl_pressed = false;
     move |e: Event| {
-        // println!("{:?}", e);
         handle_key_state!(e.event_type, Key::MetaLeft, Key::MetaRight, cmd_pressed);
         handle_key_state!(e.event_type, Key::ShiftLeft, Key::ShiftRight, shift_pressed);
         handle_key_state!(
@@ -199,10 +187,7 @@ fn pkmn_binds() -> impl FnMut(Event) {
 fn play_bytes(bytes: &Vec<u8>) {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
-    let vol = match VOL.try_lock() {
-        Ok(vol) => *vol,
-        Err(_) => 0.35,
-    };
+    let vol = get_volume_arg();
     sink.set_volume(vol);
     // Load a sound from a file, using a path relative to Cargo.toml
     let slice = Cursor::new(bytes.to_vec());
