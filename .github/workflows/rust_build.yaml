@@ -19,7 +19,7 @@ jobs:
     - name: Build release
       run: cargo build --release
     - name: Archive release
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PROJECT_NAME }}-${{ matrix.os }}
         path: target/release/${{ env.PROJECT_NAME }}
